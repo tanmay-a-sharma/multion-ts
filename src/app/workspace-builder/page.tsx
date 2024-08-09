@@ -28,47 +28,54 @@ export default function WorkspaceBuilder() {
     setSubmittedText(inputText);
     setInputText("");
     setIsLoading(true);
-
-    console.log(
-      "API Key before API call:",
-      process.env.NEXT_PUBLIC_MULTION_API_KEY ? "Present" : "Missing"
-    );
-
+  
+    console.log("API Key before API call:", process.env.NEXT_PUBLIC_MULTION_API_KEY ? "Present" : "Missing");
+  
     try {
       console.log("Creating session...");
       const createResponse = await multiOn.sessions.create({
-        url: "https://www.google.com",
+        url: "https://www.google.com"
       });
       const sessionId = createResponse.sessionId;
       console.log("Session created with ID:", sessionId);
-
+      
       console.log("Sending step command...");
       const stepResponse = await multiOn.sessions.step(sessionId, {
-        cmd: `Find relevant links for building a workspace related to: ${submittedText}. Please return a list of URLs, each on a new line.`,
+        cmd: `Search for relevant links about building a workspace related to: ${submittedText}. Visit the top 3 results and extract their URLs.`,
       });
       console.log("Step response:", stepResponse);
-
-      // Extract links from the response
-      const extractedLinks = stepResponse.message
-        .split("\n")
-        .filter((line) => line.trim().startsWith("http"));
+  
+      let extractedLinks: string[] = [];
+  
+      if (stepResponse.message.includes("http")) {
+        // Extract links from the message if present
+        extractedLinks = stepResponse.message.split('\n').filter(line => line.trim().startsWith('http'));
+      } else if (stepResponse.url && stepResponse.url.includes("google.com/search")) {
+        // Extract links from Google search URL
+        const searchParams = new URLSearchParams(new URL(stepResponse.url).search);
+        const searchQuery = searchParams.get('q');
+        console.log("Search query:", searchQuery);
+        
+        // Perform new steps to visit and extract links from search results
+        for (let i = 0; i < 3; i++) {
+          const extractLinkResponse = await multiOn.sessions.step(sessionId, {
+            cmd: `Visit the ${i + 1}${i === 0 ? 'st' : i === 1 ? 'nd' : 'rd'} search result for "${searchQuery}" and return its URL.`,
+          });
+          console.log(`Extract link response ${i + 1}:`, extractLinkResponse);
+          
+          if (extractLinkResponse.url && !extractLinkResponse.url.includes("google.com")) {
+            extractedLinks.push(extractLinkResponse.url);
+          }
+        }
+      }
+  
       console.log("Extracted links:", extractedLinks);
       setLinks(extractedLinks);
-
-      // If no links were found, try to extract from the URL
-      if (extractedLinks.length === 0 && stepResponse.url) {
-        console.log(
-          "No links found in message, extracting from URL:",
-          stepResponse.url
-        );
-        setLinks([stepResponse.url]);
-      }
-
+  
       console.log("Closing session...");
       await multiOn.sessions.close(sessionId);
     } catch (error) {
       console.error("Error in handleSubmit:", error);
-      // Add more detailed error logging
       if (error instanceof Error) {
         console.error("Error message:", error.message);
         console.error("Error stack:", error.stack);
