@@ -25,53 +25,72 @@ export default function WorkspaceBuilder() {
   };
 
   const handleSubmit = async () => {
+    if (!inputText.trim()) {
+      console.log("Empty search query, aborting.");
+      return;
+    }
+
     setSubmittedText(inputText);
     setInputText("");
     setIsLoading(true);
-  
-    console.log("API Key before API call:", process.env.NEXT_PUBLIC_MULTION_API_KEY ? "Present" : "Missing");
-  
+
+    console.log(
+      "API Key before API call:",
+      process.env.NEXT_PUBLIC_MULTION_API_KEY ? "Present" : "Missing"
+    );
+
     try {
       console.log("Creating session...");
       const createResponse = await multiOn.sessions.create({
-        url: "https://www.google.com"
+        url: "https://www.google.com",
       });
       const sessionId = createResponse.sessionId;
       console.log("Session created with ID:", sessionId);
-      
-      console.log("Sending step command...");
+
+      const searchQuery = inputText; // Use the input text directly
+      console.log("Sending step command for search query:", searchQuery);
       const stepResponse = await multiOn.sessions.step(sessionId, {
-        cmd: `Search for relevant links about building a workspace related to: ${submittedText}. Visit the top 3 results and extract their URLs.`,
+        cmd: `Search for "${searchQuery}" and visit the top 5 results to extract their URLs.`,
       });
       console.log("Step response:", stepResponse);
-  
+
       let extractedLinks: string[] = [];
-  
-      if (stepResponse.message.includes("http")) {
-        // Extract links from the message if present
-        extractedLinks = stepResponse.message.split('\n').filter(line => line.trim().startsWith('http'));
-      } else if (stepResponse.url && stepResponse.url.includes("google.com/search")) {
-        // Extract links from Google search URL
-        const searchParams = new URLSearchParams(new URL(stepResponse.url).search);
-        const searchQuery = searchParams.get('q');
-        console.log("Search query:", searchQuery);
-        
-        // Perform new steps to visit and extract links from search results
-        for (let i = 0; i < 3; i++) {
+
+      const delay = (ms: number) =>
+        new Promise((resolve) => setTimeout(resolve, ms));
+
+      if (stepResponse.url && stepResponse.url.includes("google.com/search")) {
+        for (let i = 0; i < 5; i++) {
+          await delay(1000); // 1 second delay between requests
           const extractLinkResponse = await multiOn.sessions.step(sessionId, {
-            cmd: `Visit the ${i + 1}${i === 0 ? 'st' : i === 1 ? 'nd' : 'rd'} search result for "${searchQuery}" and return its URL.`,
+            cmd: `Find and return the URL of the ${i + 1}${
+              i === 0 ? "st" : i === 1 ? "nd" : "rd"
+            } relevant website about "${searchQuery}" from the Google search results.`,
           });
           console.log(`Extract link response ${i + 1}:`, extractLinkResponse);
-          
-          if (extractLinkResponse.url && !extractLinkResponse.url.includes("google.com")) {
+
+          if (
+            extractLinkResponse.url &&
+            !extractLinkResponse.url.includes("google.com")
+          ) {
             extractedLinks.push(extractLinkResponse.url);
+          } else {
+            console.log(`Failed to extract URL for result ${i + 1}`);
           }
         }
       }
-  
+
       console.log("Extracted links:", extractedLinks);
       setLinks(extractedLinks);
-  
+
+      // Open all extracted links in new tabs
+      for (const link of extractedLinks) {
+        await multiOn.sessions.step(sessionId, {
+          cmd: `Open ${link} in a new tab.`,
+        });
+        console.log(`Opened link in new tab: ${link}`);
+      }
+
       console.log("Closing session...");
       await multiOn.sessions.close(sessionId);
     } catch (error) {
@@ -97,7 +116,7 @@ export default function WorkspaceBuilder() {
         className="mt-4"
       />
 
-      <p className="mt-4 text-xl">What do you want to build?</p>
+      <p className="mt-4 text-xl"> You want to build a workspace around what topic?</p>
       <div className="mt-8">
         <div className="relative">
           <input
