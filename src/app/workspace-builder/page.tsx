@@ -8,27 +8,37 @@ const multiOn = new MultiOnClient({
   apiKey: process.env.NEXT_PUBLIC_MULTION_API_KEY || "",
 });
 
+console.log(
+  "API Key:",
+  process.env.NEXT_PUBLIC_MULTION_API_KEY ? "Set" : "Not set"
+);
+console.log("MultiOn client initialized:", multiOn ? "Yes" : "No");
+
 export default function WorkspaceBuilder() {
   const [inputText, setInputText] = useState("");
   const [submittedText, setSubmittedText] = useState("");
+  const [links, setLinks] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [tabGroupData, setTabGroupData] = useState<{
-    title: string;
-    urls: string[];
-  } | null>(null);
-  const [extractedLinks, setExtractedLinks] = useState<{ subtopic: string; url: string }[]>([]);
 
   const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setInputText(event.target.value);
   };
 
   const handleSubmit = async () => {
-    if (!inputText.trim()) return;
-  
+    if (!inputText.trim()) {
+      console.log("Empty search query, aborting.");
+      return;
+    }
+
     setSubmittedText(inputText);
     setInputText("");
     setIsLoading(true);
-  
+
+    console.log(
+      "API Key before API call:",
+      process.env.NEXT_PUBLIC_MULTION_API_KEY ? "Present" : "Missing"
+    );
+
     try {
       console.log("Creating session...");
       const createResponse = await multiOn.sessions.create({
@@ -36,7 +46,6 @@ export default function WorkspaceBuilder() {
       });
       const sessionId = createResponse.sessionId;
       console.log("Session created with ID:", sessionId);
-<<<<<<< HEAD
 
       const searchQuery = inputText;
       console.log("Sending step command for search query:", searchQuery);
@@ -57,96 +66,38 @@ export default function WorkspaceBuilder() {
             cmd: `Find and return the URL of the ${i + 1}${
               i === 0 ? "st" : i === 1 ? "nd" : i === 2 ? "rd" : "th"
             } relevant website about "${searchQuery}" from the Google search results.`,
-=======
-  
-      const searchQuery = inputText;
-      console.log("Performing initial search...");
-      await multiOn.sessions.step(sessionId, {
-        cmd: `Search for "${searchQuery}"`,
-      });
-  
-      console.log("Extracting subtopics...");
-      const subtopicsResponse = await multiOn.sessions.step(sessionId, {
-        cmd: "List 5 key subtopics or aspects related to the search query.",
-      });
-      
-      console.log("Full subtopics response:", JSON.stringify(subtopicsResponse, null, 2));
-  
-      const subtopics = subtopicsResponse.message
-        .split("\n")
-        .filter((line) => line.trim() !== "")
-        .slice(0, 5);  // Ensure we only get 5 subtopics
-  
-      let extractedLinks: { subtopic: string; url: string }[] = [];
-  
-      for (const subtopic of subtopics) {
-        console.log(`Searching for subtopic: ${subtopic}`);
-        try {
-          await multiOn.sessions.step(sessionId, {
-            cmd: `Search for "${searchQuery} ${subtopic}"`,
->>>>>>> subtopic-extraction
           });
-  
-          const extractLinkResponse = await multiOn.sessions.step(sessionId, {
-            cmd: `Return only the URL of the most relevant and authoritative website about "${searchQuery} ${subtopic}". The response should contain nothing but the URL.`,
-          });
-  
-          console.log(`Full response for "${subtopic}":`, JSON.stringify(extractLinkResponse, null, 2));
-  
-          if (extractLinkResponse.message) {
-            const url = extractLinkResponse.message.trim();
-            if (url.startsWith('http') && !url.includes('google.com')) {
-              extractedLinks.push({ subtopic, url });
-              console.log(`Extracted link for "${subtopic}": ${url}`);
-            }
+          console.log(`Extract link response ${i + 1}:`, extractLinkResponse);
+
+          if (
+            extractLinkResponse.url &&
+            !extractLinkResponse.url.includes("google.com")
+          ) {
+            extractedLinks.push(extractLinkResponse.url);
+          } else {
+            console.log(`Failed to extract URL for result ${i + 1}`);
           }
-        } catch (error) {
-          console.error(`Error processing subtopic "${subtopic}":`, error);
         }
       }
-  
+
       console.log("Extracted links:", extractedLinks);
-<<<<<<< HEAD
       setLinks(extractedLinks);
 
       for (const link of extractedLinks) {
         await multiOn.sessions.step(sessionId, {
           cmd: `Open ${link} in a new tab.`,
-=======
-  
-      // If we didn't get any links, let's try to extract them from the search results
-      if (extractedLinks.length === 0) {
-        console.log("No links extracted. Attempting to extract from search results...");
-        const searchResultsResponse = await multiOn.sessions.step(sessionId, {
-          cmd: `List the top 5 search result URLs for "${searchQuery}". Each URL should be on a new line.`,
->>>>>>> subtopic-extraction
         });
-  
-        console.log("Search results response:", JSON.stringify(searchResultsResponse, null, 2));
-  
-        const urls = searchResultsResponse.message
-          .split('\n')
-          .filter(url => url.trim().startsWith('http') && !url.includes('google.com'))
-          .slice(0, 5);
-  
-        extractedLinks = urls.map((url, index) => ({
-          subtopic: `Result ${index + 1}`,
-          url: url.trim()
-        }));
+        console.log(`Opened link in new tab: ${link}`);
       }
-  
-      setExtractedLinks(extractedLinks);
-  
-      // Set tab group data
-      setTabGroupData({
-        title: `@Web ${searchQuery}`,
-        urls: extractedLinks.map(item => item.url),
-      });
-  
+
       console.log("Closing session...");
       await multiOn.sessions.close(sessionId);
     } catch (error) {
       console.error("Error in handleSubmit:", error);
+      if (error instanceof Error) {
+        console.error("Error message:", error.message);
+        console.error("Error stack:", error.stack);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -170,15 +121,8 @@ export default function WorkspaceBuilder() {
         priority
       />
 
-<<<<<<< HEAD
       <p className="mt-4 text-xl">You want to build a workspace around what topic?</p>
       <div className="mt-8 w-full max-w-2xl">
-=======
-      <p className="mt-4 text-xl">
-        You want to build a workspace around what topic?
-      </p>
-      <div className="mt-8">
->>>>>>> subtopic-extraction
         <div className="relative">
           <input
             type="text"
@@ -198,7 +142,6 @@ export default function WorkspaceBuilder() {
         {submittedText && (
           <p className="mt-2">Submitted text: {submittedText}</p>
         )}
-<<<<<<< HEAD
         {links.length > 0 && (
           <div className="mt-8 w-full">
             <h2 className="text-2xl font-bold mb-4">Relevant Links:</h2>
@@ -212,19 +155,6 @@ export default function WorkspaceBuilder() {
                     className="text-blue-600 hover:text-blue-800 hover:underline"
                   >
                     {shortenUrl(link)}
-=======
-        {tabGroupData && (
-          <div className="mt-4">
-            <h2 className="text-2xl font-bold">Tab Group Data:</h2>
-            <p>Title: {tabGroupData.title}</p>
-            <p>Relevant Links:</p>
-            <ul className="list-disc pl-5">
-              {extractedLinks.map((item, index) => (
-                <li key={index}>
-                  <strong>{item.subtopic}:</strong>{' '}
-                  <a href={item.url} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">
-                    {item.url}
->>>>>>> subtopic-extraction
                   </a>
                 </li>
               ))}
