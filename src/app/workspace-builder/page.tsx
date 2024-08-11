@@ -47,7 +47,7 @@ export default function WorkspaceBuilder() {
       const sessionId = createResponse.sessionId;
       console.log("Session created with ID:", sessionId);
 
-      const searchQuery = inputText; // Use the input text directly
+      const searchQuery = inputText;
       console.log("Sending step command for search query:", searchQuery);
       const stepResponse = await multiOn.sessions.step(sessionId, {
         cmd: `Search for "${searchQuery}" and visit the top 5 results to extract their URLs.`,
@@ -61,10 +61,10 @@ export default function WorkspaceBuilder() {
 
       if (stepResponse.url && stepResponse.url.includes("google.com/search")) {
         for (let i = 0; i < 5; i++) {
-          await delay(1000); // 1 second delay between requests
+          await delay(1000);
           const extractLinkResponse = await multiOn.sessions.step(sessionId, {
             cmd: `Find and return the URL of the ${i + 1}${
-              i === 0 ? "st" : i === 1 ? "nd" : "rd"
+              i === 0 ? "st" : i === 1 ? "nd" : i === 2 ? "rd" : "th"
             } relevant website about "${searchQuery}" from the Google search results.`,
           });
           console.log(`Extract link response ${i + 1}:`, extractLinkResponse);
@@ -83,7 +83,6 @@ export default function WorkspaceBuilder() {
       console.log("Extracted links:", extractedLinks);
       setLinks(extractedLinks);
 
-      // Open all extracted links in new tabs
       for (const link of extractedLinks) {
         await multiOn.sessions.step(sessionId, {
           cmd: `Open ${link} in a new tab.`,
@@ -104,6 +103,11 @@ export default function WorkspaceBuilder() {
     }
   };
 
+  const shortenUrl = (url: string) => {
+    const urlObj = new URL(url);
+    return urlObj.hostname + urlObj.pathname.slice(0, 15) + (urlObj.pathname.length > 15 ? '...' : '');
+  };
+
   return (
     <main className="flex min-h-screen flex-col items-center justify-between p-24">
       <h1 className="text-4xl font-bold">MultiOn Workspace Builder</h1>
@@ -116,8 +120,8 @@ export default function WorkspaceBuilder() {
         className="mt-4"
       />
 
-      <p className="mt-4 text-xl"> You want to build a workspace around what topic?</p>
-      <div className="mt-8">
+      <p className="mt-4 text-xl">You want to build a workspace around what topic?</p>
+      <div className="mt-8 w-full max-w-2xl">
         <div className="relative">
           <input
             type="text"
@@ -138,18 +142,18 @@ export default function WorkspaceBuilder() {
           <p className="mt-2">Submitted text: {submittedText}</p>
         )}
         {links.length > 0 && (
-          <div className="mt-4">
-            <h2 className="text-2xl font-bold">Relevant Links:</h2>
-            <ul className="list-disc pl-5">
+          <div className="mt-8 w-full">
+            <h2 className="text-2xl font-bold mb-4">Relevant Links:</h2>
+            <ul className="space-y-2">
               {links.map((link, index) => (
-                <li key={index}>
+                <li key={index} className="bg-white rounded-lg shadow-md p-4">
                   <a
                     href={link}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-blue-500 hover:underline"
+                    className="text-blue-600 hover:text-blue-800 hover:underline"
                   >
-                    {link}
+                    {shortenUrl(link)}
                   </a>
                 </li>
               ))}
