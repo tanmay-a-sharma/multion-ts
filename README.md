@@ -23,9 +23,6 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 3. It extracts the top 5 relevant links from the search results.
 4. The links are displayed to the user and opened in new tabs.
 
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## Learn More
 
