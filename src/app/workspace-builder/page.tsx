@@ -16,7 +16,9 @@ export default function WorkspaceBuilder() {
     title: string;
     urls: string[];
   } | null>(null);
-  const [extractedLinks, setExtractedLinks] = useState<{ subtopic: string; url: string }[]>([]);
+  const [extractedLinks, setExtractedLinks] = useState<
+    { subtopic: string; url: string }[]
+  >([]);
 
   const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setInputText(event.target.value);
@@ -30,96 +32,37 @@ export default function WorkspaceBuilder() {
     setIsLoading(true);
   
     try {
-      console.log("Creating session...");
-      const createResponse = await multiOn.sessions.create({
+      console.log("Starting retrieve session...");
+      const retrieveResponse = await multiOn.retrieve({
+        cmd: `Find 5 most relevant and authoritative websites about "${inputText}".`,
         url: "https://www.google.com",
-      });
-      const sessionId = createResponse.sessionId;
-      console.log("Session created with ID:", sessionId);
-  
-      const searchQuery = inputText;
-      console.log("Performing initial search...");
-      await multiOn.sessions.step(sessionId, {
-        cmd: `Search for "${searchQuery}"`,
+        fields: ["title", "url"],
+
       });
   
-      console.log("Extracting subtopics...");
-      const subtopicsResponse = await multiOn.sessions.step(sessionId, {
-        cmd: "List 5 key subtopics or aspects related to the search query.",
-      });
-      
-      console.log("Full subtopics response:", JSON.stringify(subtopicsResponse, null, 2));
+      console.log("Retrieve response:", JSON.stringify(retrieveResponse, null, 2));
   
-      const subtopics = subtopicsResponse.message
-        .split("\n")
-        .filter((line) => line.trim() !== "")
-        .slice(0, 5);  // Ensure we only get 5 subtopics
-  
-      let extractedLinks: { subtopic: string; url: string }[] = [];
-  
-      for (const subtopic of subtopics) {
-        console.log(`Searching for subtopic: ${subtopic}`);
-        try {
-          await multiOn.sessions.step(sessionId, {
-            cmd: `Search for "${searchQuery} ${subtopic}"`,
-          });
-  
-          const extractLinkResponse = await multiOn.sessions.step(sessionId, {
-            cmd: `Return only the URL of the most relevant and authoritative website about "${searchQuery} ${subtopic}". The response should contain nothing but the URL.`,
-          });
-  
-          console.log(`Full response for "${subtopic}":`, JSON.stringify(extractLinkResponse, null, 2));
-  
-          if (extractLinkResponse.message) {
-            const url = extractLinkResponse.message.trim();
-            if (url.startsWith('http') && !url.includes('google.com')) {
-              extractedLinks.push({ subtopic, url });
-              console.log(`Extracted link for "${subtopic}": ${url}`);
-            }
-          }
-        } catch (error) {
-          console.error(`Error processing subtopic "${subtopic}":`, error);
-        }
-      }
+      const extractedLinks = retrieveResponse.data.map((item, index) => ({
+        subtopic: item.title || `Result ${index + 1}`,
+        url: item.url as string
+      }));
   
       console.log("Extracted links:", extractedLinks);
   
-      // If we didn't get any links, let's try to extract them from the search results
-      if (extractedLinks.length === 0) {
-        console.log("No links extracted. Attempting to extract from search results...");
-        const searchResultsResponse = await multiOn.sessions.step(sessionId, {
-          cmd: `List the top 5 search result URLs for "${searchQuery}". Each URL should be on a new line.`,
-        });
-  
-        console.log("Search results response:", JSON.stringify(searchResultsResponse, null, 2));
-  
-        const urls = searchResultsResponse.message
-          .split('\n')
-          .filter(url => url.trim().startsWith('http') && !url.includes('google.com'))
-          .slice(0, 5);
-  
-        extractedLinks = urls.map((url, index) => ({
-          subtopic: `Result ${index + 1}`,
-          url: url.trim()
-        }));
-      }
-  
-      setExtractedLinks(extractedLinks);
-  
-      // Set tab group data
+      setExtractedLinks(extractedLinks as { subtopic: string; url: string }[]);
+
       setTabGroupData({
-        title: `@Web ${searchQuery}`,
+        title: `@Web ${inputText}`,
         urls: extractedLinks.map(item => item.url),
       });
   
-      console.log("Closing session...");
-      await multiOn.sessions.close(sessionId);
     } catch (error) {
       console.error("Error in handleSubmit:", error);
     } finally {
       setIsLoading(false);
     }
   };
+
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-between p-24">
@@ -157,16 +100,20 @@ export default function WorkspaceBuilder() {
         {submittedText && (
           <p className="mt-2">Submitted text: {submittedText}</p>
         )}
-        {tabGroupData && (
+        {extractedLinks.length > 0 && (
           <div className="mt-4">
             <h2 className="text-2xl font-bold">Tab Group Data:</h2>
-            <p>Title: {tabGroupData.title}</p>
             <p>Relevant Links:</p>
             <ul className="list-disc pl-5">
               {extractedLinks.map((item, index) => (
                 <li key={index}>
-                  <strong>{item.subtopic}:</strong>{' '}
-                  <a href={item.url} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">
+                  <strong>{item.subtopic}:</strong>{" "}
+                  <a
+                    href={item.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-500 hover:underline"
+                  >
                     {item.url}
                   </a>
                 </li>
