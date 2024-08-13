@@ -19,6 +19,7 @@ export default function WorkspaceBuilder() {
   const [extractedLinks, setExtractedLinks] = useState<
     { subtopic: string; url: string }[]
   >([]);
+  const [summary, setSummary] = useState("");
 
   const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setInputText(event.target.value);
@@ -30,6 +31,7 @@ export default function WorkspaceBuilder() {
     setSubmittedText(inputText);
     setInputText("");
     setIsLoading(true);
+    setSummary("");
   
     try {
       console.log("Starting retrieve session...");
@@ -37,7 +39,6 @@ export default function WorkspaceBuilder() {
         cmd: `Find 5 most relevant and authoritative websites about "${inputText}".`,
         url: "https://www.google.com",
         fields: ["title", "url"],
-
       });
   
       console.log("Retrieve response:", JSON.stringify(retrieveResponse, null, 2));
@@ -55,6 +56,20 @@ export default function WorkspaceBuilder() {
         title: `@Web ${inputText}`,
         urls: extractedLinks.map(item => item.url),
       });
+
+      // Generate summary
+      console.log("Generating summary...");
+      const summaryResponse = await multiOn.retrieve({
+        cmd: `Summarize the main points about "${inputText}" based on the following URLs: ${extractedLinks.map(link => link.url).join(", ")}. Provide a concise summary in about 150 words.`,
+        url: "https://www.google.com",
+        fields: ["summary"],
+      });
+
+      console.log("Summary response:", JSON.stringify(summaryResponse, null, 2));
+
+      if (summaryResponse.data?.[0]?.summary) {
+        setSummary(String(summaryResponse.data[0].summary));
+      }
   
     } catch (error) {
       console.error("Error in handleSubmit:", error);
@@ -62,7 +77,6 @@ export default function WorkspaceBuilder() {
       setIsLoading(false);
     }
   };
-
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-between p-24">
@@ -80,7 +94,7 @@ export default function WorkspaceBuilder() {
       <p className="mt-4 text-xl">
         You want to build a workspace around what topic?
       </p>
-      <div className="mt-8">
+      <div className="mt-8 w-full max-w-2xl">
         <div className="relative">
           <input
             type="text"
@@ -119,6 +133,12 @@ export default function WorkspaceBuilder() {
                 </li>
               ))}
             </ul>
+          </div>
+        )}
+        {summary && (
+          <div className="mt-8">
+            <h2 className="text-2xl font-bold mb-2">Summary:</h2>
+            <p className="text-lg">{summary}</p>
           </div>
         )}
       </div>
