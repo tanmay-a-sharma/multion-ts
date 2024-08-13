@@ -12,10 +12,11 @@ export default function WorkspaceBuilder() {
   const [inputText, setInputText] = useState("");
   const [submittedText, setSubmittedText] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [tabGroupData, setTabGroupData] = useState<{
-    title: string;
-    urls: string[];
-  } | null>(null);
+  // const [tabGroupData, setTabGroupData] = useState<{
+  //   title: string;
+  //   urls: string[];
+  // } | null>(null);
+  
   const [extractedLinks, setExtractedLinks] = useState<
     { subtopic: string; url: string }[]
   >([]);
@@ -52,10 +53,10 @@ export default function WorkspaceBuilder() {
   
       setExtractedLinks(extractedLinks as { subtopic: string; url: string }[]);
 
-      setTabGroupData({
-        title: `@Web ${inputText}`,
-        urls: extractedLinks.map(item => item.url),
-      });
+      // setTabGroupData({
+      //   title: `@Web ${inputText}`,
+      //   urls: extractedLinks.map(item => item.url),
+      // });
 
       // Generate summary
       console.log("Generating summary...");
